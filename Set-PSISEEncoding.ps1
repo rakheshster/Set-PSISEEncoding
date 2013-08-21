@@ -67,10 +67,13 @@ $preferredEncoding = [text.encoding]::$Encoding
 # Adds menu item Add-ons > Save & Close as [Encoding] for each of the encodings present in the system
 # Idea thanks to http://serverfault.com/a/229560
 $menu = $psISE.CurrentPowerShellTab.AddOnsMenu.Submenus.Add("Save & Close as [Encoding]...",$null,$null)
-foreach ($global:enc in ([text.encoding] | gm -Static -MemberType Properties).Name) { 
-  Write-Verbose "Creating menu for encoding $global:enc"
-  $menu.Submenus.Add("$global:enc",{ $currFile = $psIse.CurrentFile; $currFile.Save([text.encoding]::$global:enc); $psIse.CurrentPowerShellTab.Files.Remove($currFile) },$null) | Out-Null
+foreach ($global:enc in [text.encoding] | gm -Static -MemberType Properties | select Name) { 
+  Write-Verbose "Creating menu for encoding $($global:enc.Name)"
+  $menu.Submenus.Add($global:enc.Name,{ $currFile = $psIse.CurrentFile; $currFile.Save([text.encoding]::$global:enc.Name); $psIse.CurrentPowerShellTab.Files.Remove($currFile) },$null) | Out-Null
 }
+
+# Note to self: ([text.encoding] | gm -Static -MemberType Properties).Name) didn't work in PowerShell 2.0
+# That's why I am doing ($global:enc in [text.encoding] | gm -Static -MemberType Properties | select Name) and then referring to the variable as $global:enc.Name.
 
 # The actual work begins here ...
 # First set the encoding of all existing files (such as Untitled1.ps1) to $preferredEncoding
