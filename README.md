@@ -3,19 +3,19 @@ This script is pretty much a mix of various snippets from the web. It is meant t
 
 1. Lets you specify your preferred encoding. 
 
-PowerShell 2.0 saves as UTF16 by default; PowerShell 3.0 saves as UTF8 by default. If no encoding is specified this script sets the preferred encoding to UTF8.
+  PowerShell 2.0 saves as UTF16 by default; PowerShell 3.0 saves as UTF8 by default. If no encoding is specified this script sets the preferred encoding to UTF8.
 
-Why UTF8 as the preferred encoding? Because the script was originally born when I started using Git & Mercurial to manage my code and realized that PowerShell 2.0 saves files as UTF16 and that doesn't play well with these DVCSes. 
+  Why UTF8 as the preferred encoding? Because the script was originally born when I started using Git & Mercurial to manage my code and realized that PowerShell 2.0 saves files as UTF16 and that doesn't play well with these DVCSes. 
 
-Later I decided to tidy it up and make it more generic, the result of which is before you now. I am learning PowerShell and making a big deal of simple stuff like this lets me play around with the language a bit. :)
+  Later I decided to tidy it up and make it more generic, the result of which is before you now. I am learning PowerShell and making a big deal of simple stuff like this lets me play around with the language a bit. :)
 
 2. Each time you open a file, if its encoding isn't the preferred one the script *automatically changes the encoding* to what you specify and *saves it*. 
 
-I provide a switch -NoAutoSave in which case the encoding is set to the preferred one but the file isn't automatically saved. This way you can open and close files of a different encoding but they won't be changed. 
+  I provide a switch -NoAutoSave in which case the encoding is set to the preferred one but the file isn't automatically saved. This way you can open and close files of a different encoding but they won't be changed. 
 
 3. It creates a Sub menu under Add-ons called "Save & Close as [Encoding]..." within which you have items for each of the encodings supported by ISE. This way you can save a file in a different encoding as a one time thing. 
 
-I decided to close the file after saving - else the script *could* automatically resave it later to the preferred encoding. 
+  I decided to close the file after saving - else the script *could* automatically resave it later to the preferred encoding. 
 
 ## Help
 The script includes a comment based help so `help .\Set-PSISEEncoding.ps1` (with any of the usual `help` switches) is a good idea. 
