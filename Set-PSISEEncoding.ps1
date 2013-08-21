@@ -68,15 +68,21 @@ $preferredEncoding = [text.encoding]::$Encoding
 # Idea thanks to http://serverfault.com/a/229560
 $menu = $psISE.CurrentPowerShellTab.AddOnsMenu.Submenus.Add("Save & Close as [Encoding]...",$null,$null)
 foreach ($global:enc in ([text.encoding] | gm -Static -MemberType Properties).Name) { 
-  $menu.Submenus.Add("$global:enc",{ $currFile = $psIse.CurrentFile; $currFile.Save([text.encoding]::$global:enc); $psIse.CurrentPowerShellTab.Files.Remove($currFile) },$null) 
+  Write-Verbose "Creating menu for encoding $global:enc"
+  $menu.Submenus.Add("$global:enc",{ $currFile = $psIse.CurrentFile; $currFile.Save([text.encoding]::$global:enc); $psIse.CurrentPowerShellTab.Files.Remove($currFile) },$null) | Out-Null
 }
 
 # The actual work begins here ...
 # First set the encoding of all existing files (such as Untitled1.ps1) to $preferredEncoding
 # Thanks to http://www.nivot.org/post/2010/05/21/PowerShellISEHackingChangeDefaultSaveEncodingToASCII for the idea
+# This doesn't save the encoding to the files. Only sets it. The user has to save the file for the encoding to take effect. 
 $psISE.CurrentPowerShellTab.Files | %{ 
   # Set private field which holds default encoding to $preferredEncoding
-  $_.GetType().GetField("encoding","nonpublic,instance").SetValue($_, $preferredEncoding)
+  if ($PSVersionTable.PSVersion.Major -eq 2) { $_.GetType().GetField("encoding","nonpublic,instance").SetValue($_, $preferredEncoding) }
+  if ($PSVersionTable.PSVersion.Major -eq 3) { $_.Gettype().GetField("doc","nonpublic,instance").Getvalue($_).Encoding = $preferredEncoding }
+
+  # PowerShell 2 and 3 have different ways of setting the encoding. 
+  # Thanks to http://stackoverflow.com/questions/8678810/what-happened-to-this-in-powershell-v3-ctp2-ise. 
 }
   
 # Then do the same for any new files that we open (register an event for this)
@@ -92,6 +98,10 @@ Register-ObjectEvent $psISE.CurrentPowerShellTab.Files CollectionChanged -action
 
     # For all files set private field which holds default encoding to $preferredEncoding
     # Mind you, this only sets the field. It doesn't actually take effect on the file until it is saved. 
-    if ($_.Encoding -ne $preferredEncoding) { $_.GetType().GetField("encoding","nonpublic,instance").SetValue($_, $preferredEncoding) }
+    if (($_.Encoding -ne $preferredEncoding) -and ($PSVersionTable.PSVersion.Major -eq 2)) { $_.GetType().GetField("encoding","nonpublic,instance").SetValue($_, $preferredEncoding) }
+    if (($_.Encoding -ne $preferredEncoding) -and ($PSVersionTable.PSVersion.Major -eq 3)) { $_.Gettype().GetField("doc","nonpublic,instance").Getvalue($_).Encoding = $preferredEncoding }
+
+    # PowerShell 2 and 3 have different ways of setting the encoding. 
+    # Thanks to http://stackoverflow.com/questions/8678810/what-happened-to-this-in-powershell-v3-ctp2-ise. 
   }
 } | Out-Null # piping it to Out-Null so the output isn't shown in the Output Pane
