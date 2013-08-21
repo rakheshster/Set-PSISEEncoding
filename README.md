@@ -27,7 +27,8 @@ The script includes a comment based help so `help .\Set-PSISEEncoding.ps1` (with
   
   If you don't know how, or are unsure whether you have a `$profile` copy-paste the following in the console pane/ command pane in PowerShell ISE and press enter:
   
-  `if(!(Test-Path $profile)) { New-Item -ItemType File -Path $profile -Force }; $psISE.CurrentPowerShellTab.Files.Add($profile)`
+        if(!(Test-Path $profile)) { New-Item -ItemType File -Path $profile -Force }
+        $psISE.CurrentPowerShellTab.Files.Add($profile)
   
   This will create the $profile file if it doesn't exist. And then open a new tab with this file loaded. 
   
