@@ -34,6 +34,6 @@ The script includes a comment based help so `help .\Set-PSISEEncoding.ps1` (with
   
 3. Add a line such as the following to the `$profile` file: `\path\to\files\Set-PSISEEncoding.ps1`.
 
-If you want a different encoding from the default UTF8, modify the line to be like this: `\path\to\files\Set-PSISEEncoding.ps1 -Encoding ASCII`
+  If you want a different encoding from the default UTF8, modify the line to be like this: `\path\to\files\Set-PSISEEncoding.ps1 -Encoding ASCII`
 
 4. Close and open PowerShell ISE. 
