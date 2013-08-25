@@ -67,9 +67,21 @@ $preferredEncoding = [text.encoding]::$Encoding
 # Adds menu item Add-ons > Save & Close as [Encoding] for each of the encodings present in the system
 # Idea thanks to http://serverfault.com/a/229560
 $menu = $psISE.CurrentPowerShellTab.AddOnsMenu.Submenus.Add("Save & Close as [Encoding]...",$null,$null)
-foreach ($global:enc in [text.encoding] | gm -Static -MemberType Properties | select Name) { 
-  Write-Verbose "Creating menu for encoding $($global:enc.Name)"
-  $menu.Submenus.Add($global:enc.Name,{ $currFile = $psIse.CurrentFile; $currFile.Save([text.encoding]::$global:enc.Name); $psIse.CurrentPowerShellTab.Files.Remove($currFile) },$null) | Out-Null
+
+if ($PSVersionTable.PSVersion.Major -eq 2) {
+  foreach ($global:enc in [text.encoding] | gm -Static -MemberType Properties | select Name) { 
+    Write-Verbose "Creating menu for encoding $($global:enc.Name)"
+    $menu.Submenus.Add($global:enc.Name,{ $currFile = $psIse.CurrentFile; $currFile.Save([text.encoding]::$global:enc.Name); $psIse.CurrentPowerShellTab.Files.Remove($currFile) },$null) | Out-Null
+  }
+}
+
+# TODO: check that the block above works in POSH 2. And check that the block below too works in POSH 2.
+# ALSO does the event thingy work? How can I test. Do on both 2 and 3. 
+if ($PSVersionTable.PSVersion.Major -eq 3) {
+  foreach ($global:enc in [text.encoding] | gm -Static -MemberType Properties | select Name) { 
+    Write-Verbose "Creating menu for encoding $($global:enc.Name)"
+    $menu.Submenus.Add($global:enc.Name,{ $currFile = $psIse.CurrentFile; $currFile.Save([text.encoding]::($global:enc.Name)); $psIse.CurrentPowerShellTab.Files.Remove($currFile) },$null) | Out-Null
+  }
 }
 
 # Note to self: ([text.encoding] | gm -Static -MemberType Properties).Name) didn't work in PowerShell 2.0
@@ -94,10 +106,11 @@ $psISE.CurrentPowerShellTab.Files | %{
 Register-ObjectEvent $psISE.CurrentPowerShellTab.Files CollectionChanged -action {
   # Iterate ISEFile objects
   $event.sender | %{
+    "opened $_" > "c:\temp23.txt"
     # In case of an existing file, change encoding and *save* it so that even if the user closes the file without any changes the encoding is saved.
     # Do this only if the encoding isn't $preferredEncoding and if $NoAutoSave is $false.
     # Use Test-Path to determine if it's an existing file. 
-    if (!$NoAutoSave -and (Test-Path $_.FullPath) -and ($_.Encoding -ne $preferredEncoding)) { $_.Save($preferredEncoding) }
+    if (!$NoAutoSave -and (Test-Path $_.FullPath) -and ($_.Encoding -ne $preferredEncoding)) { $_.Save($preferredEncoding); "saving $_" > "c:\temp23.txt"  }
 
     # For all files set private field which holds default encoding to $preferredEncoding
     # Mind you, this only sets the field. It doesn't actually take effect on the file until it is saved. 
@@ -107,4 +120,4 @@ Register-ObjectEvent $psISE.CurrentPowerShellTab.Files CollectionChanged -action
     # PowerShell 2 and 3 have different ways of setting the encoding. 
     # Thanks to http://stackoverflow.com/questions/8678810/what-happened-to-this-in-powershell-v3-ctp2-ise. 
   }
-} | Out-Null # piping it to Out-Null so the output isn't shown in the Output Pane
+} #| Out-Null # piping it to Out-Null so the output isn't shown in the Output Pane
