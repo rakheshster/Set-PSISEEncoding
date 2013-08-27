@@ -70,9 +70,27 @@ $global:preferredEncoding = [text.encoding]::($Encoding)
 # Adds menu item Add-ons > Save & Close as [Encoding] for each of the encodings present in the system
 # Idea thanks to http://serverfault.com/a/229560
 $menu = $psISE.CurrentPowerShellTab.AddOnsMenu.Submenus.Add("Save & Close as [Encoding]...",$null,$null)
+<<<<<<< HEAD
 foreach ($global:enc in [text.encoding] | gm -Static -MemberType Properties | select Name) { 
   Write-Verbose "Creating menu for encoding $($global:enc.Name)"
   $menu.Submenus.Add($global:enc.Name,{ $currFile = $psIse.CurrentFile; $currFile.Save([text.encoding]::($global:enc.Name)); $psIse.CurrentPowerShellTab.Files.Remove($currFile) },$null) | Out-Null
+=======
+
+if ($PSVersionTable.PSVersion.Major -eq 2) {
+  foreach ($global:enc in [text.encoding] | gm -Static -MemberType Properties | select Name) { 
+    Write-Verbose "Creating menu for encoding $($global:enc.Name)"
+    $menu.Submenus.Add($global:enc.Name,{ $currFile = $psIse.CurrentFile; $currFile.Save([text.encoding]::$global:enc.Name); $psIse.CurrentPowerShellTab.Files.Remove($currFile) },$null) | Out-Null
+  }
+}
+
+# TODO: check that the block above works in POSH 2. And check that the block below too works in POSH 2.
+# ALSO does the event thingy work? How can I test. Do on both 2 and 3. 
+if ($PSVersionTable.PSVersion.Major -eq 3) {
+  foreach ($global:enc in [text.encoding] | gm -Static -MemberType Properties | select Name) { 
+    Write-Verbose "Creating menu for encoding $($global:enc.Name)"
+    $menu.Submenus.Add($global:enc.Name,{ $currFile = $psIse.CurrentFile; $currFile.Save([text.encoding]::($global:enc.Name)); $psIse.CurrentPowerShellTab.Files.Remove($currFile) },$null) | Out-Null
+  }
+>>>>>>> dba2976aca39db600b0d797ccd606f4ea65bb8db
 }
 
 # Note to self: ([text.encoding] | gm -Static -MemberType Properties).Name) didn't work in PowerShell 2.0
@@ -96,6 +114,7 @@ $psISE.CurrentPowerShellTab.Files | %{
 # and http://bensonxion.wordpress.com/2012/04/25/powershell-ise-default-saveas-encoding/
 Register-ObjectEvent -InputObject $psise.CurrentPowerShellTab.Files -EventName CollectionChanged -Action {
   # Iterate ISEFile objects
+<<<<<<< HEAD
   # $Event.Sender (aka $Sender) is an automatic variable, see http://technet.microsoft.com/en-us/library/hh847768.aspx
   # Mind you this happens when we close & open tabs
   $Event.Sender | %{
@@ -112,6 +131,16 @@ Register-ObjectEvent -InputObject $psise.CurrentPowerShellTab.Files -EventName C
     }
 
     # For all files set private field which holds default encoding to $global:preferredEncoding
+=======
+  $event.sender | %{
+    "opened $_" > "c:\temp23.txt"
+    # In case of an existing file, change encoding and *save* it so that even if the user closes the file without any changes the encoding is saved.
+    # Do this only if the encoding isn't $preferredEncoding and if $NoAutoSave is $false.
+    # Use Test-Path to determine if it's an existing file. 
+    if (!$NoAutoSave -and (Test-Path $_.FullPath) -and ($_.Encoding -ne $preferredEncoding)) { $_.Save($preferredEncoding); "saving $_" > "c:\temp23.txt"  }
+
+    # For all files set private field which holds default encoding to $preferredEncoding
+>>>>>>> dba2976aca39db600b0d797ccd606f4ea65bb8db
     # Mind you, this only sets the field. It doesn't actually take effect on the file until it is saved. 
     if (($_.Encoding -ne $global:preferredEncoding) -and ($PSVersionTable.PSVersion.Major -eq 2)) { $_.GetType().GetField("encoding","nonpublic,instance").SetValue($_, $global:preferredEncoding) }
     if (($_.Encoding -ne $global:preferredEncoding) -and ($PSVersionTable.PSVersion.Major -eq 3)) { $_.Gettype().GetField("doc","nonpublic,instance").Getvalue($_).Encoding = $global:preferredEncoding }
@@ -119,4 +148,8 @@ Register-ObjectEvent -InputObject $psise.CurrentPowerShellTab.Files -EventName C
     # PowerShell 2 and 3 have different ways of setting the encoding. 
     # Thanks to http://stackoverflow.com/questions/8678810/what-happened-to-this-in-powershell-v3-ctp2-ise. 
   }
+<<<<<<< HEAD
 } | Out-Null # piping it to Out-Null so the output isn't shown in the Output Pane
+=======
+} #| Out-Null # piping it to Out-Null so the output isn't shown in the Output Pane
+>>>>>>> dba2976aca39db600b0d797ccd606f4ea65bb8db
