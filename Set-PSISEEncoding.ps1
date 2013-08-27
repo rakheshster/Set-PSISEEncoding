@@ -48,7 +48,7 @@ Sets encoding as UTF16. No auto save.
 param(
   # Our preferred encoding
   [parameter(Mandatory=$false)]
-  [ValidateScript({([text.encoding] | gm -Static -MemberType Properties).Name -contains "$_"})]
+  [ValidateSet("UTF8","Unicode","UTF7","ASCII","UTF32","BigEndianUnicode")]
   [string]$Encoding = "UTF8",
   
   # AutoSave files to the preferred encoding or not?
@@ -60,18 +60,20 @@ param(
 # Not sure if the brackets are required; there were some issues and as part of troubleshooting I put in brackets just in case operator precedence was affecting things
 # After the issue got solved I was too lazy to remove brackets and re-test. Brackets are definitely needed in the AddOnsMenu bit below - was waiting without that - so no harm in keeping them here.
 # It is, however, important that the variable is specified as of global scope else it does not work within the event-action block.
-$global:preferredEncoding = [text.encoding]::($Encoding)
+$global:preferredEncoding = [text.encoding]::$Encoding
 
 # Adds menu item Add-ons > Save & Close as [Encoding] for each of the encodings present in the system
 # Idea thanks to http://serverfault.com/a/229560
+# I tried like crazy to have a dynamic menu - i.e. the scriptblock had something like $_.Save($encoding) where $encoding would be set from one of the values we have (I had a loop that made menu entries)
+# However, turns out $encoding does not get assigned whatever value it is as part of the loop; rather, at run time $encoding is picked up. Since this always points to the last value of the loop the code never worked. 
+# Tried whatever I could think of to make the scripblock get a variable and have dynamic menus, but I failed. So hardcoding these manually for now. 
 $menu = $psISE.CurrentPowerShellTab.AddOnsMenu.Submenus.Add("Save & Close as [Encoding]...",$null,$null)
-foreach ($global:enc in [text.encoding] | gm -Static -MemberType Properties | select Name) { 
-  Write-Verbose "Creating menu for encoding $($global:enc.Name)"
-  $menu.Submenus.Add($global:enc.Name,{ $currFile = $psIse.CurrentFile; $currFile.Save([text.encoding]::($global:enc.Name)); $psIse.CurrentPowerShellTab.Files.Remove($currFile) },$null) | Out-Null
-}
-
-# Note to self: ([text.encoding] | gm -Static -MemberType Properties).Name) didn't work in PowerShell 2.0
-# That's why I am doing ($global:enc in [text.encoding] | gm -Static -MemberType Properties | select Name) and then referring to the variable as $global:enc.Name.
+$menu.Submenus.Add("UTF8",{ $psIse.CurrentFile.Save([text.encoding]::UTF8); $psIse.CurrentPowerShellTab.Files.Remove($psIse.CurrentFile) },$null) | Out-Null
+$menu.Submenus.Add("Unicode|UTF16",{ $psIse.CurrentFile.Save([text.encoding]::Unicode); $psIse.CurrentPowerShellTab.Files.Remove($psIse.CurrentFile) },$null) | Out-Null
+$menu.Submenus.Add("ANSI|UTF7",{ $psIse.CurrentFile.Save([text.encoding]::UTF7); $psIse.CurrentPowerShellTab.Files.Remove($psIse.CurrentFile) },$null) | Out-Null
+$menu.Submenus.Add("UTF32",{ $psIse.CurrentFile.Save([text.encoding]::UTF32); $psIse.CurrentPowerShellTab.Files.Remove($psIse.CurrentFile) },$null) | Out-Null
+$menu.Submenus.Add("ASCII",{ $psIse.CurrentFile.Save([text.encoding]::ASCII); $psIse.CurrentPowerShellTab.Files.Remove($psIse.CurrentFile) },$null) | Out-Null
+$menu.Submenus.Add("Big Endian Unicode",{ $psIse.CurrentFile.Save([text.encoding]::BigEndianUnicode); $psIse.CurrentPowerShellTab.Files.Remove($psIse.CurrentFile) },$null) | Out-Null
 
 # The actual work begins here ...
 # First set the encoding of all existing files (such as Untitled1.ps1) to $global:preferredEncoding
@@ -102,7 +104,7 @@ Register-ObjectEvent -InputObject $psise.CurrentPowerShellTab.Files -EventName C
       # What would happen is that the event will register, but fail after the first time. 
       # http://blogs.technet.com/b/heyscriptingguy/archive/2011/06/17/manage-event-subscriptions-with-powershell.aspx helped me troubleshoot and learn a bit more about events.
       # Eventually I realized the problem was that $_.Save() was failing and so stopping the events. It would work if I specified the encoding manually, but failed on variables. 
-      # On a hunch I tried changing the scope to global, and now it works. This whole script - this part here, and the AddOns Menu above - have driven home global variables for me!
+      # On a hunch I tried changing the scope to global, and now it works. 
       $_.Save($global:preferredEncoding) 
     }
 
