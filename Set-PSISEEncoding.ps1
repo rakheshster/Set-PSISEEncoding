@@ -62,27 +62,30 @@ param(
 )
 
 # Convert the input to an object of the [text.encoding] class
-$preferredEncoding = [text.encoding]::$Encoding
+# Not sure if the brackets are required; there were some issues and as part of troubleshooting I put in brackets just in case operator precedence was affecting things
+# After the issue got solved I was too lazy to remove brackets and re-test. Brackets are definitely needed in the AddOnsMenu bit below - was waiting without that - so no harm in keeping them here.
+# It is, however, important that the variable is specified as of global scope else it does not work within the event-action block.
+$global:preferredEncoding = [text.encoding]::($Encoding)
 
 # Adds menu item Add-ons > Save & Close as [Encoding] for each of the encodings present in the system
 # Idea thanks to http://serverfault.com/a/229560
 $menu = $psISE.CurrentPowerShellTab.AddOnsMenu.Submenus.Add("Save & Close as [Encoding]...",$null,$null)
 foreach ($global:enc in [text.encoding] | gm -Static -MemberType Properties | select Name) { 
   Write-Verbose "Creating menu for encoding $($global:enc.Name)"
-  $menu.Submenus.Add($global:enc.Name,{ $currFile = $psIse.CurrentFile; $currFile.Save([text.encoding]::$global:enc.Name); $psIse.CurrentPowerShellTab.Files.Remove($currFile) },$null) | Out-Null
+  $menu.Submenus.Add($global:enc.Name,{ $currFile = $psIse.CurrentFile; $currFile.Save([text.encoding]::($global:enc.Name)); $psIse.CurrentPowerShellTab.Files.Remove($currFile) },$null) | Out-Null
 }
 
 # Note to self: ([text.encoding] | gm -Static -MemberType Properties).Name) didn't work in PowerShell 2.0
 # That's why I am doing ($global:enc in [text.encoding] | gm -Static -MemberType Properties | select Name) and then referring to the variable as $global:enc.Name.
 
 # The actual work begins here ...
-# First set the encoding of all existing files (such as Untitled1.ps1) to $preferredEncoding
+# First set the encoding of all existing files (such as Untitled1.ps1) to $global:preferredEncoding
 # Thanks to http://www.nivot.org/post/2010/05/21/PowerShellISEHackingChangeDefaultSaveEncodingToASCII for the idea
 # This doesn't save the encoding to the files. Only sets it. The user has to save the file for the encoding to take effect. 
 $psISE.CurrentPowerShellTab.Files | %{ 
-  # Set private field which holds default encoding to $preferredEncoding
-  if ($PSVersionTable.PSVersion.Major -eq 2) { $_.GetType().GetField("encoding","nonpublic,instance").SetValue($_, $preferredEncoding) }
-  if ($PSVersionTable.PSVersion.Major -eq 3) { $_.Gettype().GetField("doc","nonpublic,instance").Getvalue($_).Encoding = $preferredEncoding }
+  # Set private field which holds default encoding to $global:preferredEncoding
+  if ($PSVersionTable.PSVersion.Major -eq 2) { $_.GetType().GetField("encoding","nonpublic,instance").SetValue($_, $global:preferredEncoding) }
+  if ($PSVersionTable.PSVersion.Major -eq 3) { $_.Gettype().GetField("doc","nonpublic,instance").Getvalue($_).Encoding = $global:preferredEncoding }
 
   # PowerShell 2 and 3 have different ways of setting the encoding. 
   # Thanks to http://stackoverflow.com/questions/8678810/what-happened-to-this-in-powershell-v3-ctp2-ise. 
@@ -91,18 +94,27 @@ $psISE.CurrentPowerShellTab.Files | %{
 # Then do the same for any new files that we open (register an event for this)
 # Thanks to http://social.technet.microsoft.com/Forums/windowsserver/en-US/dacb75cb-47da-4120-8dca-c697f8a84c70/powershell-ise-default-file-encoding-change-from-unicode-big-endian-to-ascii
 # and http://bensonxion.wordpress.com/2012/04/25/powershell-ise-default-saveas-encoding/
-Register-ObjectEvent $psISE.CurrentPowerShellTab.Files CollectionChanged -action {
+Register-ObjectEvent -InputObject $psise.CurrentPowerShellTab.Files -EventName CollectionChanged -Action {
   # Iterate ISEFile objects
-  $event.sender | %{
+  # $Event.Sender (aka $Sender) is an automatic variable, see http://technet.microsoft.com/en-us/library/hh847768.aspx
+  # Mind you this happens when we close & open tabs
+  $Event.Sender | %{
     # In case of an existing file, change encoding and *save* it so that even if the user closes the file without any changes the encoding is saved.
-    # Do this only if the encoding isn't $preferredEncoding and if $NoAutoSave is $false.
-    # Use Test-Path to determine if it's an existing file. 
-    if (!$NoAutoSave -and (Test-Path $_.FullPath) -and ($_.Encoding -ne $preferredEncoding)) { $_.Save($preferredEncoding) }
+    # Do this only if the encoding isn't $global:preferredEncoding and if $NoAutoSave is $false.
+    # Use Test-Path to determine if it's an existing file (can also use $_.IsUntitled)
+    if (!$NoAutoSave -and (Test-Path $_.FullPath) -and ($_.Encoding -ne $global:preferredEncoding)) { 
+      # This stumped me for a day. During testing phase it used to work, even when I'd run the commands manually. But after a few days of use I realized it was failing. 
+      # What would happen is that the event will register, but fail after the first time. 
+      # http://blogs.technet.com/b/heyscriptingguy/archive/2011/06/17/manage-event-subscriptions-with-powershell.aspx helped me troubleshoot and learn a bit more about events.
+      # Eventually I realized the problem was that $_.Save() was failing and so stopping the events. It would work if I specified the encoding manually, but failed on variables. 
+      # On a hunch I tried changing the scope to global, and now it works. This whole script - this part here, and the AddOns Menu above - have driven home global variables for me!
+      $_.Save($global:preferredEncoding) 
+    }
 
-    # For all files set private field which holds default encoding to $preferredEncoding
+    # For all files set private field which holds default encoding to $global:preferredEncoding
     # Mind you, this only sets the field. It doesn't actually take effect on the file until it is saved. 
-    if (($_.Encoding -ne $preferredEncoding) -and ($PSVersionTable.PSVersion.Major -eq 2)) { $_.GetType().GetField("encoding","nonpublic,instance").SetValue($_, $preferredEncoding) }
-    if (($_.Encoding -ne $preferredEncoding) -and ($PSVersionTable.PSVersion.Major -eq 3)) { $_.Gettype().GetField("doc","nonpublic,instance").Getvalue($_).Encoding = $preferredEncoding }
+    if (($_.Encoding -ne $global:preferredEncoding) -and ($PSVersionTable.PSVersion.Major -eq 2)) { $_.GetType().GetField("encoding","nonpublic,instance").SetValue($_, $global:preferredEncoding) }
+    if (($_.Encoding -ne $global:preferredEncoding) -and ($PSVersionTable.PSVersion.Major -eq 3)) { $_.Gettype().GetField("doc","nonpublic,instance").Getvalue($_).Encoding = $global:preferredEncoding }
 
     # PowerShell 2 and 3 have different ways of setting the encoding. 
     # Thanks to http://stackoverflow.com/questions/8678810/what-happened-to-this-in-powershell-v3-ctp2-ise. 
