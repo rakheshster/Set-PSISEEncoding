@@ -57,9 +57,7 @@ param(
 )
 
 # Convert the input to an object of the [text.encoding] class
-# Not sure if the brackets are required; there were some issues and as part of troubleshooting I put in brackets just in case operator precedence was affecting things
-# After the issue got solved I was too lazy to remove brackets and re-test. Brackets are definitely needed in the AddOnsMenu bit below - was waiting without that - so no harm in keeping them here.
-# It is, however, important that the variable is specified as of global scope else it does not work within the event-action block.
+# It is important that the variable is specified as of global scope else it does not work within the event-action block.
 $global:preferredEncoding = [text.encoding]::$Encoding
 
 # Adds menu item Add-ons > Save & Close as [Encoding] for each of the encodings present in the system
